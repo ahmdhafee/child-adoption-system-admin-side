@@ -31,49 +31,51 @@ if ($_SESSION['officer_role'] !== 'admin') {
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="logo">
-                    <i class="fas fa-hands-helping"></i>
-                    <div>
-                        <div style="font-size: 1.3rem;">Family Bridge</div>
-                        <div class="admin-tag">Inquiries Management</div>
-                    </div>
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-hands-helping"></i>
+                <div>
+                    <div style="font-size: 1.3rem;">Family Bridge</div>
+                    <div>Admin Panel</div>
                 </div>
             </div>
+        </div>
             
             <nav class="sidebar-nav">
-                <a href="index.html" class="nav-item">
-                    <i class="fas fa-tachometer-alt"></i>
-                    Dashboard
+            <a href="index.php"  class="nav-item">
+                <i class="fas fa-tachometer-alt"></i>
+                Dashboard
+            </a>
+
+            <a href="children-management.php" class="nav-item">
+                <i class="fas fa-child"></i>
+                Children Management
+            </a>
+
+            <a href="inquiries.php" class="nav-item">
+                <i class="fas fa-question-circle"></i>
+                Inquiries
+                
+            </a>
+
+            <a href="clients.php" class="nav-item">
+                <i class="fas fa-users"></i>
+                Clients
+            </a>
+
+            <a href="appointments.php" class="nav-item">
+                <i class="fas fa-calendar-check"></i>
+                Appointments
+               
+            </a>
+            <a href="documents_review.php" class="nav-item ">
+                <i class="fas fa-file-alt"></i>
+                 <span>Document Review</span>
                 </a>
-                <a href="children-management.html" class="nav-item">
-                    <i class="fas fa-child"></i>
-                    Children Management
-                </a>
-                <a href="Guide lines.html" class="nav-item">
-                    <i class="fas fa-book"></i>
-                    Guidelines
-                </a>
-                <a href="Inquires.html" class="nav-item active">
-                    <i class="fas fa-question-circle"></i>
-                    Inquiries
-                </a>
-                <a href="Clients.html" class="nav-item">
-                    <i class="fas fa-users"></i>
-                    Clients
-                </a>
-                <a href="Appointments.html" class="nav-item">
-                    <i class="fas fa-calendar-check"></i>
-                    Appointments
-                </a>
+            
             </nav>
             
-            <div class="logout-section">
-                <button class="logout-btn" id="logoutBtn"  >
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span href="../officer_logout.php">Logout</span>
-                </button>
-            </div>
+            
         </aside>
 
         <!-- Main Content -->
@@ -91,18 +93,21 @@ if ($_SESSION['officer_role'] !== 'admin') {
                 </div>
                 
                 <div class="header-right">
-                    <div class="admin-profile">
-                        <div class="admin-avatar">AD</div>
-                        <div class="admin-info">
-                            <h4>Admin User</h4>
-                            <p>Support Administrator</p>
-                        </div>
+                <div class="admin-profile">
+                    <div class="admin-avatar">AD</div>
+                    <div class="admin-info">
+                        <!-- keep class admin-info -->
+                       
+                        <p>System Administrator</p>
                     </div>
-                    <button class="logout-btn" id="logoutBtn">
-                        <i class="fas fa-sign-out-alt"></i>
-                        Logout
-                    </button>
                 </div>
+
+               
+                <a class="logout-btn" href="../officer_logout.php" style="text-decoration:none;">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Logout
+                </a>
+            </div>
             </header>
 
             <!-- Content Area -->
@@ -359,6 +364,319 @@ if ($_SESSION['officer_role'] !== 'admin') {
     <!-- Notifications Container -->
     <div class="notifications-container" style="position: fixed; bottom: 30px; right: 30px; z-index: 1000; max-width: 350px;"></div>
 
-   
+    <script>
+const API_LIST = "api/get_inquiries.php";
+const API_ONE  = "api/get_inquiry.php";
+const API_REPLY = "api/reply_inquiry.php";
+const API_MARK_ALL = "api/mark_all_read.php";
+
+const inquiriesList = document.getElementById('inquiriesList');
+const noResults = document.getElementById('noResults');
+
+const totalInquiries = document.getElementById('totalInquiries');
+const newInquiries = document.getElementById('newInquiries');
+const pendingInquiries = document.getElementById('pendingInquiries');
+const resolvedInquiries = document.getElementById('resolvedInquiries');
+
+const allCount = document.getElementById('allCount');
+const newCount = document.getElementById('newCount');
+const pendingCount = document.getElementById('pendingCount');
+const resolvedCount = document.getElementById('resolvedCount');
+const highCount = document.getElementById('highCount');
+
+const searchInquiries = document.getElementById('searchInquiries');
+const categoryFilter = document.getElementById('categoryFilter');
+const dateFrom = document.getElementById('dateFrom');
+const dateTo = document.getElementById('dateTo');
+
+const clearFilters = document.getElementById('clearFilters');
+const refreshInquiries = document.getElementById('refreshInquiries');
+const markAllReadBtn = document.getElementById('markAllReadBtn');
+
+const viewInquiryModal = document.getElementById('viewInquiryModal');
+const replyMessage = document.getElementById('replyMessage');
+const sendReplyBtn = document.getElementById('sendReplyBtn');
+const markPendingBtn = document.getElementById('markPendingBtn');
+const markResolvedBtn = document.getElementById('markResolvedBtn');
+
+let allInquiriesData = [];
+let activeTabStatus = 'all';
+let currentInquiryId = null;
+
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+}
+
+function cap(s){ return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+function badgeClassByStatus(status){
+  if(status === 'new') return 'badge-new';
+  if(status === 'pending') return 'badge-pending';
+  if(status === 'resolved') return 'badge-resolved';
+  return 'badge-normal';
+}
+function badgeClassByPriority(priority){
+  if(priority === 'high') return 'badge-high';
+  return 'badge-normal';
+}
+
+function updateStats(list){
+  const total = list.length;
+  const n = list.filter(x => x.status === 'new').length;
+  const p = list.filter(x => x.status === 'pending').length;
+  const r = list.filter(x => x.status === 'resolved').length;
+  const h = list.filter(x => x.priority === 'high').length;
+
+  totalInquiries.textContent = total;
+  newInquiries.textContent = n;
+  pendingInquiries.textContent = p;
+  resolvedInquiries.textContent = r;
+
+  allCount.textContent = total;
+  newCount.textContent = n;
+  pendingCount.textContent = p;
+  resolvedCount.textContent = r;
+  highCount.textContent = h;
+}
+
+function renderList(list){
+  inquiriesList.innerHTML = '';
+
+  if(!list.length){
+    noResults.style.display = 'block';
+    return;
+  }
+  noResults.style.display = 'none';
+
+  list.forEach(inq => {
+    const item = document.createElement('div');
+    item.className = 'inquiry-item'; // keep your CSS class usage
+
+    const dateStr = inq.created_at ? new Date(inq.created_at).toLocaleString() : '-';
+
+    item.innerHTML = `
+      <div class="inquiry-header" style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+        <div>
+          <div style="font-weight:700;color:var(--primary)">${esc(inq.client_name)}</div>
+          <div style="font-size:0.9rem;color:var(--gray)">${esc(inq.client_email)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.85rem;color:var(--gray)">${esc(dateStr)}</div>
+          <div style="margin-top:6px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+            <span class="badge ${badgeClassByStatus(inq.status)}">${cap(inq.status)}</span>
+            <span class="badge ${badgeClassByPriority(inq.priority)}">${cap(inq.priority)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="inquiry-body" style="margin-top:10px;">
+        <div style="font-weight:600">${esc(inq.subject)}</div>
+        <div style="color:var(--gray);margin-top:6px;line-height:1.4">
+          ${esc((inq.message || '').slice(0,140))}${(inq.message || '').length > 140 ? '...' : ''}
+        </div>
+      </div>
+
+      <div class="inquiry-actions" style="margin-top:12px;display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn btn-secondary" data-action="view" data-id="${esc(inq.id)}">
+          <i class="fas fa-eye"></i> View
+        </button>
+      </div>
+    `;
+
+    inquiriesList.appendChild(item);
+  });
+}
+
+function applyFilters(){
+  const q = (searchInquiries.value || '').trim().toLowerCase();
+  const cat = (categoryFilter.value || '').trim().toLowerCase();
+  const from = dateFrom.value ? new Date(dateFrom.value + 'T00:00:00') : null;
+  const to = dateTo.value ? new Date(dateTo.value + 'T23:59:59') : null;
+
+  let list = allInquiriesData.slice();
+
+  // Tabs filter
+  if(activeTabStatus !== 'all'){
+    if(activeTabStatus === 'high'){
+      list = list.filter(x => x.priority === 'high');
+    } else {
+      list = list.filter(x => x.status === activeTabStatus);
+    }
+  }
+
+  // Search
+  if(q){
+    list = list.filter(x => {
+      const hay = (x.client_name + ' ' + x.client_email + ' ' + x.subject + ' ' + x.message).toLowerCase();
+      return hay.includes(q);
+    });
+  }
+
+  // Category/type
+  if(cat){
+    list = list.filter(x => (x.type || '').toLowerCase() === cat);
+  }
+
+  // Date range
+  if(from){
+    list = list.filter(x => x.created_at && new Date(x.created_at) >= from);
+  }
+  if(to){
+    list = list.filter(x => x.created_at && new Date(x.created_at) <= to);
+  }
+
+  renderList(list);
+}
+
+async function loadInquiries(){
+  const res = await fetch(API_LIST);
+  const data = await res.json();
+
+  if(!data.success){
+    allInquiriesData = [];
+    updateStats([]);
+    renderList([]);
+    return;
+  }
+
+  allInquiriesData = data.inquiries || [];
+  updateStats(allInquiriesData);
+  applyFilters();
+}
+
+async function openInquiryModal(id){
+  const res = await fetch(`${API_ONE}?id=${encodeURIComponent(id)}`);
+  const data = await res.json();
+  if(!data.success){
+    alert(data.message || 'Failed to load inquiry');
+    return;
+  }
+
+  const inq = data.inquiry;
+  currentInquiryId = inq.id;
+
+  document.getElementById('modalInquiryId').textContent = 'INQ-' + String(inq.id).padStart(4,'0');
+  document.getElementById('modalSenderName').textContent = inq.client_name;
+  document.getElementById('modalSenderEmail').textContent = inq.client_email;
+  document.getElementById('modalInquiryDate').textContent = inq.created_at ? new Date(inq.created_at).toLocaleString() : '-';
+
+  document.getElementById('modalCategory').textContent = cap(inq.type || 'general');
+  document.getElementById('modalPriority').textContent = cap(inq.priority || 'medium');
+  document.getElementById('modalStatus').textContent = cap(inq.status || 'new');
+
+  document.getElementById('modalSubject').textContent = inq.subject || '';
+  document.getElementById('modalMessage').textContent = inq.message || '';
+
+  replyMessage.value = inq.reply_message || '';
+
+  viewInquiryModal.style.display = 'block';
+}
+
+async function saveReply(newStatus){
+  if(!currentInquiryId) return;
+
+  const msg = replyMessage.value.trim();
+  if(!msg) return alert('Please type your reply.');
+
+  // priority from modal badge text (simple rule)
+  const priorityText = (document.getElementById('modalPriority').textContent || 'Medium').toLowerCase();
+  const pr = (priorityText === 'high' || priorityText === 'low') ? priorityText : 'medium';
+
+  const form = new FormData();
+  form.append('id', currentInquiryId);
+  form.append('response', msg);
+  form.append('status', newStatus);   // pending / resolved
+  form.append('priority', pr);
+
+  const res = await fetch(API_REPLY, { method:'POST', body: form });
+  const data = await res.json();
+
+  alert(data.message || 'Done');
+
+  if(data.success){
+    viewInquiryModal.style.display = 'none';
+    currentInquiryId = null;
+    await loadInquiries();
+  }
+}
+
+/* ====== EVENTS ====== */
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    activeTabStatus = t.dataset.status || 'all';
+    applyFilters();
+  });
+});
+
+// View click from list
+inquiriesList.addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  if(btn.dataset.action === 'view'){
+    openInquiryModal(btn.dataset.id);
+  }
+});
+
+// Modal close buttons (keep your data-modal system)
+document.querySelectorAll('.modal-close').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const id = btn.getAttribute('data-modal');
+    const modal = document.getElementById(id);
+    if(modal) modal.style.display = 'none';
+  });
+});
+document.querySelectorAll('[data-modal]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const id = btn.getAttribute('data-modal');
+    const modal = document.getElementById(id);
+    if(modal) modal.style.display = 'none';
+  });
+});
+
+// Mark buttons in modal
+markPendingBtn.addEventListener('click', ()=> saveReply('pending'));
+markResolvedBtn.addEventListener('click', ()=> saveReply('resolved'));
+sendReplyBtn.addEventListener('click', ()=> saveReply('pending')); // send -> pending default
+
+// Search/filter
+searchInquiries.addEventListener('input', applyFilters);
+categoryFilter.addEventListener('change', applyFilters);
+dateFrom.addEventListener('change', applyFilters);
+dateTo.addEventListener('change', applyFilters);
+
+clearFilters.addEventListener('click', ()=>{
+  searchInquiries.value = '';
+  categoryFilter.value = '';
+  dateFrom.value = '';
+  dateTo.value = '';
+  applyFilters();
+});
+
+refreshInquiries.addEventListener('click', loadInquiries);
+
+markAllReadBtn.addEventListener('click', async ()=>{
+  const res = await fetch(API_MARK_ALL);
+  const data = await res.json();
+  alert(data.message || 'Done');
+  loadInquiries();
+});
+
+// Logout (don’t change your id)
+document.getElementById('logoutBtn').addEventListener('click', ()=>{
+  if(confirm('Are you sure you want to logout?')){
+    window.location.href = '../officer_logout.php';
+  }
+});
+
+// Start
+loadInquiries();
+</script>
+
 </body>
 </html>

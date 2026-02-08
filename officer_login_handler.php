@@ -4,6 +4,8 @@ declare(strict_types=1);
 session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/officer_db.php';
+require_once __DIR__ . '/mailer.php';
+
 
 function fail(string $msg, int $code = 400): void {
     http_response_code($code);

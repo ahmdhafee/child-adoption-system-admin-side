@@ -32,13 +32,7 @@ if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'chief') 
                 </div>
             </div>
 
-            <div class="admin-info">
-                <div class="admin-avatar">
-                    <i class="fas fa-user-shield"></i>
-                </div>
-                <div class="admin-name"><?php echo htmlspecialchars($_SESSION['officer_name'] ?? 'Chief Officer'); ?></div>
-                <div class="admin-role">System Administrator</div>
-            </div>
+           
 
             <nav class="sidebar-nav">
                 <a href="index.php" class="nav-item">
@@ -53,6 +47,10 @@ if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'chief') 
                     <i class="fas fa-child"></i>
                     <span>Children Management</span>
                 </a>
+                <!-- ✅ NEW: Institute Management -->
+            <a href="institutes.php" class="nav-item">
+                <i class="fas fa-building"></i><span>Institute Management</span>
+            </a>
                 <a href="clients.php" class="nav-item">
                     <i class="fas fa-user-friends"></i>
                     <span>Clients</span>
@@ -69,6 +67,9 @@ if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'chief') 
                     <i class="fas fa-book"></i>
                     <span>Guidelines</span>
                 </a>
+                <a href="required_documents.php" class="nav-item ">
+        <i class="fas fa-file-upload"></i><span>Required Documents</span>
+      </a>
             </nav>
 
             <div class="logout-section">
