@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="shortcut icon" href="favlogo.png" type="image/x-icon">
     <style>
-        /* CSS Reset and Base Styles */
+
         * {
             margin: 0;
             padding: 0;
@@ -16,7 +16,7 @@
         }
 
         :root {
-            /* Professional Admin Color Palette */
+            
             --primary: #2C3E50;
             --secondary: #34495E;
             --accent: #3498DB;
@@ -594,7 +594,7 @@
         </div>
     </main>
 
-    <!-- Footer -->
+   
     <footer class="footer">
         <div class="container">
             <p>&copy; 2023 Family Bridge Admin Portal. All rights reserved.</p>

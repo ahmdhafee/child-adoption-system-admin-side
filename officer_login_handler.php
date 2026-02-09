@@ -22,7 +22,7 @@ function generateOtp(): string {
 }
 
 function sendOtpDevMode(string $email, string $otp): void {
-    // Find OTP in: C:\wamp64\logs\php_error.log
+   
     error_log("OFFICER OTP for $email : $otp");
 }
 
@@ -42,7 +42,7 @@ if (!in_array($role, ['admin', 'chief'], true)) {
     fail('Invalid role');
 }
 
-// Find officer
+
 $stmt = $pdo->prepare("SELECT id, email, full_name, password_hash, role, status
                        FROM officers
                        WHERE email = ? AND role = ?
@@ -60,10 +60,9 @@ if (!password_verify($password, $officer['password_hash'])) {
     fail('Invalid credentials');
 }
 
-// Important: regenerate session
+
 session_regenerate_id(true);
 
-// Create OTP
 $otp = generateOtp();
 $otpHash = password_hash($otp, PASSWORD_DEFAULT);
 $expires = (new DateTime('+5 minutes'))->format('Y-m-d H:i:s');
@@ -71,7 +70,7 @@ $expires = (new DateTime('+5 minutes'))->format('Y-m-d H:i:s');
 $pdo->prepare("INSERT INTO officer_otp (officer_id, otp_hash, expires_at) VALUES (?, ?, ?)")
     ->execute([(int)$officer['id'], $otpHash, $expires]);
 
-// Save pending session for OTP verify
+
 $_SESSION['pending_officer_id'] = (int)$officer['id'];
 $_SESSION['pending_officer_email'] = $officer['email'];
 
