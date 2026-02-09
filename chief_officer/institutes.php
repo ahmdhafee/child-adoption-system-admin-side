@@ -49,7 +49,7 @@ if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'chief') 
             <a href="institutes.php" class="nav-item active">
                 <i class="fas fa-building"></i><span>Institute Management</span>
             </a>
-
+            
             <a href="clients.php" class="nav-item">
                 <i class="fas fa-user-friends"></i><span>Clients</span>
             </a>

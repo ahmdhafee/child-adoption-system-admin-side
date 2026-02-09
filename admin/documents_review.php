@@ -2,7 +2,7 @@
 require_once '../officer_auth.php';
 
 if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'admin') {
-    die('Access denied');
+  die('Access denied');
 }
 ?>
 <!DOCTYPE html>
@@ -29,7 +29,9 @@ if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'admin') 
     .btn-danger{background:#e74c3c;color:#fff;}
     .btn-success{background:#27ae60;color:#fff;}
     .btn-secondary{background:#6c757d;color:#fff;}
-    .badge{padding:4px 10px;border-radius:999px;font-size:12px;color:#fff;display:inline-block;}
+
+    .badge{padding:4px 10px;border-radius:999px;font-size:12px;color:#fff;display:inline-block;text-transform:capitalize;}
+    .b-uploaded{background:#6b7280;}
     .b-pending{background:#f39c12;}
     .b-approved{background:#27ae60;}
     .b-rejected{background:#e74c3c;}
@@ -50,7 +52,6 @@ if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'admin') 
     textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;min-height:90px;resize:vertical;}
     .link{color:#3498db;text-decoration:none;}
     .link:hover{text-decoration:underline;}
-
     .hint{font-size:13px;color:#666;margin-top:8px;}
   </style>
 </head>
@@ -77,7 +78,6 @@ if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'admin') 
       <a href="clients.php" class="nav-item"><i class="fas fa-users"></i> <span>Clients</span></a>
       <a href="appointments.php" class="nav-item"><i class="fas fa-calendar-check"></i> <span>Appointments</span></a>
       <a href="documents_review.php" class="nav-item active"><i class="fas fa-file-alt"></i> <span>Document Review</span></a>
-  
     </nav>
   </aside>
 
@@ -129,6 +129,7 @@ if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'admin') 
             <label>Status</label>
             <select id="statusFilter">
               <option value="all">All</option>
+              <option value="uploaded">Uploaded</option>
               <option value="pending">Pending</option>
               <option value="approved">Approved</option>
               <option value="rejected">Rejected</option>
@@ -252,12 +253,17 @@ const rejectBtn = document.getElementById('rejectBtn');
 let allDocs = [];
 let currentId = null;
 
-function esc(s){ return String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, m => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+}
 
 function badge(st){
   st = String(st||'pending').toLowerCase();
   if(st === 'approved') return 'b-approved';
   if(st === 'rejected') return 'b-rejected';
+  if(st === 'uploaded') return 'b-uploaded';
   return 'b-pending';
 }
 
@@ -268,11 +274,18 @@ function closeModal(){
   review_notes.value = '';
 }
 
+function requirementText(d){
+  // If API sends requirement_name use it, else fallback to requirement_id
+  if (d.requirement_name && d.requirement_name !== '-') return d.requirement_name;
+  if (d.requirement_id) return `REQ-${d.requirement_id}`;
+  return '-';
+}
+
 function render(list){
   tbody.innerHTML = list.map(d => `
     <tr>
       <td>
-        <strong>${esc(d.requirement_name || '-')}</strong><br>
+        <strong>${esc(requirementText(d))}</strong><br>
         <small>${esc(d.category || '-')}</small>
       </td>
       <td>
@@ -280,7 +293,7 @@ function render(list){
         <small>${esc(d.file_path || '')}</small>
       </td>
       <td><span class="badge ${badge(d.status)}">${esc(d.status || 'pending')}</span></td>
-      <td>${esc(d.upload_date || d.created_at || '-')}</td>
+      <td>${esc(d.upload_date || '-')}</td>
       <td>
         <button class="btn btn-outline" data-action="view" data-id="${esc(d.id)}">View</button>
       </td>
@@ -293,35 +306,46 @@ function applyFilters(){
   const st = statusFilter.value;
   const cat = categoryFilter.value;
 
-  let list = allDocs.filter(d => {
+  const list = allDocs.filter(d => {
     const hay = (
-      (d.requirement_name||'') + ' ' +
+      requirementText(d) + ' ' +
       (d.original_name||'') + ' ' +
       (d.file_name||'') + ' ' +
       (d.category||'')
     ).toLowerCase();
-    if(q && !hay.includes(q)) return false;
-    if(st !== 'all' && String(d.status||'pending') !== st) return false;
-    if(cat !== 'all' && String(d.category||'') !== cat) return false;
+
+    if (q && !hay.includes(q)) return false;
+    if (st !== 'all' && String(d.status||'pending').toLowerCase() !== st) return false;
+    if (cat !== 'all' && String(d.category||'').toLowerCase() !== cat) return false;
     return true;
   });
 
   render(list);
 }
 
+async function safeJson(res){
+  const txt = await res.text();
+  try { return JSON.parse(txt); } catch(e) { return {success:false, message:'Invalid JSON from API', raw:txt}; }
+}
+
 async function loadClients(){
-  const res = await fetch(`${API_URL}?action=clients`);
-  const data = await res.json();
+  try {
+    const res = await fetch(`${API_URL}?action=clients`);
+    const data = await safeJson(res);
 
-  if(!data.success){
-    clientSelect.innerHTML = `<option value="">Failed to load clients</option>`;
-    return;
+    if(!data.success){
+      clientSelect.innerHTML = `<option value="">Failed to load clients</option>`;
+      return;
+    }
+
+    const clients = data.clients || [];
+    clientSelect.innerHTML =
+      `<option value="">Select Client</option>` +
+      clients.map(c => `<option value="${esc(c.id)}">${esc(c.email)} (ID: ${esc(c.id)})</option>`).join('');
+
+  } catch(e){
+    clientSelect.innerHTML = `<option value="">API error</option>`;
   }
-
-  const clients = data.clients || [];
-  clientSelect.innerHTML =
-    `<option value="">Select Client</option>` +
-    clients.map(c => `<option value="${esc(c.id)}">${esc(c.email)} (ID: ${esc(c.id)})</option>`).join('');
 }
 
 async function loadDocsForClient(userId){
@@ -331,44 +355,54 @@ async function loadDocsForClient(userId){
     return;
   }
 
-  const res = await fetch(`${API_URL}?action=list&user_id=${encodeURIComponent(userId)}`);
-  const data = await res.json();
+  try {
+    const res = await fetch(`${API_URL}?action=list&user_id=${encodeURIComponent(userId)}`);
+    const data = await safeJson(res);
 
-  if(!data.success){
-    tbody.innerHTML = `<tr><td colspan="5">${esc(data.message || 'Failed')}</td></tr>`;
-    return;
+    if(!data.success){
+      tbody.innerHTML = `<tr><td colspan="5">${esc(data.message || 'Failed')}</td></tr>`;
+      return;
+    }
+
+    allDocs = data.documents || [];
+    applyFilters();
+
+  } catch(e){
+    tbody.innerHTML = `<tr><td colspan="5">API error</td></tr>`;
   }
-
-  allDocs = data.documents || [];
-  applyFilters();
 }
 
 async function viewDoc(id){
-  const res = await fetch(`${API_URL}?action=get&id=${encodeURIComponent(id)}`);
-  const data = await res.json();
-  if(!data.success) return alert(data.message || 'Failed');
+  try {
+    const res = await fetch(`${API_URL}?action=get&id=${encodeURIComponent(id)}`);
+    const data = await safeJson(res);
+    if(!data.success) return alert(data.message || 'Failed');
 
-  const d = data.document;
-  currentId = d.id;
+    const d = data.document;
+    currentId = d.id;
 
-  m_doc_id.textContent = `#${d.id}`;
-  m_status.textContent = d.status || 'pending';
-  m_email.textContent = d.client_email || '-';
-  m_user_id.textContent = d.user_id || '-';
-  m_req.textContent = d.requirement_name || '-';
-  m_cat.textContent = d.category || '-';
-  m_original.textContent = d.original_name || d.file_name || '-';
-  m_size.textContent = d.file_size ? `${d.file_size} bytes` : '-';
+    m_doc_id.textContent = `#${d.id}`;
+    m_status.textContent = d.status || 'pending';
+    m_email.textContent = d.client_email || '-';
+    m_user_id.textContent = d.user_id || '-';
+    m_req.textContent = requirementText(d);
+    m_cat.textContent = d.category || '-';
+    m_original.textContent = d.original_name || d.file_name || '-';
+    m_size.textContent = d.file_size ? `${d.file_size} bytes` : '-';
 
-  if(d.file_path){
-    const safe = esc(d.file_path);
-    m_file_link.innerHTML = `<a class="link" href="${safe}" target="_blank" rel="noopener">Open File</a>`;
-  } else {
-    m_file_link.textContent = '-';
+    if(d.file_path){
+      const safe = esc(d.file_path);
+      m_file_link.innerHTML = `<a class="link" href="${safe}" target="_blank" rel="noopener">Open File</a>`;
+    } else {
+      m_file_link.textContent = '-';
+    }
+
+    review_notes.value = d.review_notes || '';
+    openModal();
+
+  } catch(e){
+    alert('API error');
   }
-
-  review_notes.value = d.review_notes || '';
-  openModal();
 }
 
 async function postAction(action){
@@ -380,7 +414,8 @@ async function postAction(action){
   form.append('review_notes', review_notes.value.trim());
 
   const res = await fetch(API_URL, {method:'POST', body: form});
-  const data = await res.json();
+  const data = await safeJson(res);
+
   alert(data.message || (data.success ? 'Done' : 'Failed'));
 
   if(data.success){
@@ -412,6 +447,7 @@ categoryFilter.addEventListener('change', applyFilters);
 
 clientSelect.addEventListener('change', ()=> loadDocsForClient(clientSelect.value));
 refreshBtn.addEventListener('click', ()=> loadDocsForClient(clientSelect.value));
+
 
 /* INIT */
 loadClients();

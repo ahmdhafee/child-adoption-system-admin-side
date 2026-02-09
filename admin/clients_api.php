@@ -8,87 +8,104 @@ header('Content-Type: application/json');
 
 if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'admin') {
     http_response_code(403);
-    echo json_encode(['success'=>false,'message'=>'Access denied']);
+    echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit;
 }
 
-function ok(array $data=[]): void { echo json_encode(array_merge(['success'=>true],$data)); exit; }
-function fail(string $m,int $c=400): void { http_response_code($c); echo json_encode(['success'=>false,'message'=>$m]); exit; }
+function ok(array $data = []): void {
+    echo json_encode(array_merge(['success' => true], $data));
+    exit;
+}
+
+function fail(string $m, int $c = 400): void {
+    http_response_code($c);
+    echo json_encode(['success' => false, 'message' => $m]);
+    exit;
+}
 
 $action = $_GET['action'] ?? ($_POST['action'] ?? '');
 
 try {
-
-    // ✅ LIST CLIENTS
+    // ✅ LIST ALL CLIENTS (Fetching from applications table)
     if ($action === 'list') {
-
-        // Your table from screenshot: id, email, registration_id, created_at, last_login, status
+        // Fetch data from the applications table
         $stmt = $pdo->query("
             SELECT
-                id AS user_id,
-                email,
-                registration_id,
-                created_at,
-                last_login,
-                status AS user_status
-            FROM users
-            ORDER BY id DESC
+                a.id AS application_id,
+                a.registration_id,
+                CONCAT(a.husband_name, ' & ', a.wife_name) AS couple_name,
+                a.husband_age,
+                a.wife_age,
+                a.status AS application_status,
+                a.eligibility_score,
+                a.created_at
+            FROM applications a
+            ORDER BY a.id DESC
         ");
+        
+        if ($stmt === false) {
+            throw new Exception('Error executing the SQL query.');
+        }
 
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Build response fields that your JS expects
-        $clients = array_map(function($r){
-            $email = (string)($r['email'] ?? '');
-            $name = $email;
-            if (strpos($email, '@') !== false) {
-                $name = explode('@', $email)[0]; // name from email (ex: ahamedhafeel29)
-            }
+        if (!$rows) {
+            fail('No clients found.');
+        }
 
+        // Prepare the data for the response
+        $clients = array_map(function ($r) {
             return [
-                'user_id' => $r['user_id'],
-                'name' => $name,                           // ✅ JS needs name
-                'email' => $r['email'],
-                'registration_id' => $r['registration_id'] ?? '-',
-                'user_status' => $r['user_status'] ?? 'pending',
-
-                // ✅ These fields are not in your DB now, so return safe defaults:
-                'eligibility_score' => 0,
-                'application_status' => 'pending',
-                'docs_total' => 0,
-                'docs_approved' => 0,
-                'has_voted' => false,
-                'appointment_count' => 0,
+                'application_id' => $r['application_id'],
+                'registration_id' => $r['registration_id'],
+                'couple_name' => $r['couple_name'],
+                'husband_age' => $r['husband_age'],
+                'wife_age' => $r['wife_age'],
+                'application_status' => $r['application_status'],
+                'eligibility_score' => $r['eligibility_score'],
+                'created_at' => $r['created_at']
             ];
         }, $rows);
 
         ok(['clients' => $clients]);
     }
 
-    // ✅ TOGGLE ACTIVE/SUSPEND
-    if ($action === 'toggle' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    // ✅ LIST CLIENTS WHO HAVE VOTED (Unchanged)
+    if ($action === 'list_voted_clients') {
+        $stmt = $pdo->query("
+            SELECT
+                u.id AS user_id,
+                u.email,
+                CONCAT(u.first_name, ' ', u.last_name) AS client_name
+            FROM users u
+            JOIN user_votes uv ON u.id = uv.user_id
+            WHERE uv.status = 'active'  -- Only clients who have voted
+            ORDER BY u.id DESC
+        ");
 
-        $user_id = (int)($_POST['user_id'] ?? 0);
-        if ($user_id <= 0) fail('Invalid user_id');
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $cur = $pdo->prepare("SELECT status FROM users WHERE id = ?");
-        $cur->execute([$user_id]);
-        $status = $cur->fetchColumn();
+        if (!$rows) {
+            fail('No clients found who have voted.');
+        }
 
-        if (!$status) fail('Client not found', 404);
+        $clients = array_map(function ($r) {
+            return [
+                'user_id' => $r['user_id'],
+                'name' => $r['client_name'],
+                'email' => $r['email'],
+            ];
+        }, $rows);
 
-        // you currently use: active (screenshot). We will toggle between active <-> suspended
-        $newStatus = ($status === 'active') ? 'suspended' : 'active';
-
-        $upd = $pdo->prepare("UPDATE users SET status = ? WHERE id = ?");
-        $upd->execute([$newStatus, $user_id]);
-
-        ok(['message' => "Client status updated to $newStatus"]);
+        ok(['clients' => $clients]);
     }
 
     fail('Unknown action');
-
 } catch (PDOException $e) {
-    error_log("clients_api error: ".$e->getMessage());
+    error_log("clients_api error: " . $e->getMessage());
     fail('Server error', 500);
+} catch (Exception $e) {
+    error_log("Error: " . $e->getMessage());
+    fail('An unexpected error occurred', 500);
 }
+?>

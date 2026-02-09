@@ -1,6 +1,4 @@
 <?php
-declare(strict_types=1);
-
 require_once '../officer_auth.php';
 require_once '../officer_db.php';
 
@@ -8,41 +6,42 @@ header('Content-Type: application/json');
 
 if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'admin') {
     http_response_code(403);
-    echo json_encode(['success'=>false,'message'=>'Access denied']);
+    echo json_encode(['success' => false, 'message' => 'Access denied']);
     exit;
 }
 
-function ok(array $data=[]): void {
-    echo json_encode(array_merge(['success'=>true], $data));
+function ok(array $data = []): void {
+    echo json_encode(array_merge(['success' => true], $data));
     exit;
 }
-function fail(string $m, int $c=400): void {
+
+function fail(string $m, int $c = 400): void {
     http_response_code($c);
-    echo json_encode(['success'=>false,'message'=>$m]);
+    echo json_encode(['success' => false, 'message' => $m]);
     exit;
 }
 
 $action = $_GET['action'] ?? ($_POST['action'] ?? '');
 
 function cleanStatus(string $status): string {
-    // keep your UI statuses
-    $allowed = ['scheduled','upcoming','completed','cancelled'];
+    // Keep your UI statuses
+    $allowed = ['scheduled', 'upcoming', 'completed', 'cancelled'];
     return in_array($status, $allowed, true) ? $status : 'scheduled';
 }
 
 try {
-
     if ($action === 'list') {
         $rows = $pdo->query("
-            SELECT a.*,
-                   u.email AS client_email
+            SELECT a.*, u.email AS client_email
             FROM appointments a
             LEFT JOIN users u ON u.id = a.user_id
             ORDER BY a.appointment_date DESC, a.appointment_time DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
 
         $total = count($rows);
-        $upcoming = 0; $completed = 0; $cancelled = 0;
+        $upcoming = 0;
+        $completed = 0;
+        $cancelled = 0;
 
         foreach ($rows as $r) {
             $st = (string)($r['status'] ?? '');
@@ -79,6 +78,15 @@ try {
             fail('Missing required fields');
         }
 
+        // Check if the client has voted for a child
+        $voteCheck = $pdo->prepare("SELECT COUNT(*) FROM user_votes WHERE user_id = ? AND status = 'active'");
+        $voteCheck->execute([$user_id]);
+        $hasVoted = (int)$voteCheck->fetchColumn();
+
+        if (!$hasVoted) {
+            fail('Client must vote for a child before scheduling an appointment');
+        }
+
         // Optional: validate user exists
         $check = $pdo->prepare("SELECT id FROM users WHERE id=? LIMIT 1");
         $check->execute([$user_id]);
@@ -97,7 +105,7 @@ try {
             $status, $meeting_location, $address, $appointment_notes, $confirmed ? 1 : 0
         ]);
 
-        ok(['message'=>'Appointment created successfully']);
+        ok(['message' => 'Appointment created successfully']);
     }
 
     if ($action === 'update' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -118,6 +126,15 @@ try {
 
         if ($user_id <= 0 || $appointment_type === '' || $appointment_date === '' || $appointment_time === '' || $meeting_location === '') {
             fail('Missing required fields');
+        }
+
+        // Check if the client has voted for a child
+        $voteCheck = $pdo->prepare("SELECT COUNT(*) FROM user_votes WHERE user_id = ? AND status = 'active'");
+        $voteCheck->execute([$user_id]);
+        $hasVoted = (int)$voteCheck->fetchColumn();
+
+        if (!$hasVoted) {
+            fail('Client must vote for a child before scheduling an appointment');
         }
 
         // Optional: ensure appointment exists
@@ -147,7 +164,7 @@ try {
             $id
         ]);
 
-        ok(['message'=>'Appointment updated successfully']);
+        ok(['message' => 'Appointment updated successfully']);
     }
 
     if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -157,7 +174,7 @@ try {
         $stmt = $pdo->prepare("DELETE FROM appointments WHERE id=?");
         $stmt->execute([$id]);
 
-        ok(['message'=>'Appointment deleted successfully']);
+        ok(['message' => 'Appointment deleted successfully']);
     }
 
     fail('Unknown action');

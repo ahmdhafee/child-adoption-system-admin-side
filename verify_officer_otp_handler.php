@@ -33,7 +33,7 @@ if ($otp === '' || !ctype_digit($otp) || strlen($otp) !== 6) {
 $officerId = (int)$_SESSION['pending_officer_id'];
 
 try {
-    // Get latest OTP for this officer
+    
     $stmt = $pdo->prepare("
         SELECT id, otp_hash, expires_at, is_used
         FROM officer_otp
@@ -60,11 +60,11 @@ try {
         fail('Invalid OTP');
     }
 
-    // Mark OTP as used
+    
     $pdo->prepare("UPDATE officer_otp SET is_used = 1 WHERE id = ?")
         ->execute([(int)$row['id']]);
 
-    // Fetch officer account (admin or chief)
+    
     $stmt2 = $pdo->prepare("
         SELECT id, email, full_name, role, status
         FROM officers
@@ -82,23 +82,23 @@ try {
         fail('Account not active.');
     }
 
-    // Security: regenerate session after OTP success
+    
     session_regenerate_id(true);
 
     $_SESSION['officer_id'] = (int)$officer['id'];
-    $_SESSION['officer_role'] = $officer['role']; // admin | chief
+    $_SESSION['officer_role'] = $officer['role']; 
     $_SESSION['officer_email'] = $officer['email'];
     $_SESSION['officer_name'] = $officer['full_name'];
     $_SESSION['officer_login_time'] = time();
 
-    // Clear pending session keys
+    
     unset($_SESSION['pending_officer_id'], $_SESSION['pending_officer_email']);
 
-    // Update last login
+
     $pdo->prepare("UPDATE officers SET last_login = NOW() WHERE id = ?")
         ->execute([(int)$officer['id']]);
 
-    // Redirect by role
+   
     $redirect = ($officer['role'] === 'chief') ? 'chief_officer/index.php' : 'admin/index.php';
 
     ok([

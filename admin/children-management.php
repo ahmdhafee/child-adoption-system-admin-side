@@ -17,6 +17,8 @@ $isAdmin = ($role === 'admin');
     <title>Children Management | Chief Officer Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/children-management.css">
+    <link rel="stylesheet" href="css/index.css">
+    <link rel="stylesheet" href="css">
     <link rel="shortcut icon" href="../favlogo.png" type="image/x-icon">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -38,6 +40,45 @@ $isAdmin = ($role === 'admin');
         @media (max-width: 768px){
             .form-grid{grid-template-columns:1fr}
         }
+
+     
+   
+    .content{padding:20px;}
+    .card{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.08);padding:15px;margin-bottom:15px;}
+    table{width:100%;border-collapse:collapse;}
+    th,td{padding:12px;border-bottom:1px solid #eee;text-align:left;font-size:14px;vertical-align:top;}
+    th{background:#f3f5fa;}
+    .btn{padding:8px 10px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
+    .btn-primary{background:#3498db;color:#fff;}
+    .btn-outline{background:#fff;border:1px solid #ddd;}
+    .btn-danger{background:#e74c3c;color:#fff;}
+    .btn-success{background:#27ae60;color:#fff;}
+    .btn-secondary{background:#6c757d;color:#fff;}
+
+    .badge{padding:4px 10px;border-radius:999px;font-size:12px;color:#fff;display:inline-block;text-transform:capitalize;}
+    .b-uploaded{background:#6b7280;}
+    .b-pending{background:#f39c12;}
+    .b-approved{background:#27ae60;}
+    .b-rejected{background:#e74c3c;}
+
+    .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;}
+    .filters label{display:block;font-size:12px;color:#555;margin-bottom:5px;}
+    .filters input,.filters select{padding:10px;border:1px solid #ddd;border-radius:10px;min-width:220px;}
+
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:9999;}
+    .modal{background:#fff;border-radius:12px;max-width:900px;width:96%;box-shadow:0 10px 30px rgba(0,0,0,.2);overflow:hidden;}
+    .modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eee;}
+    .modal-body{padding:16px;}
+    .modal-footer{padding:14px 16px;border-top:1px solid #eee;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .field{background:#f7f8fb;border:1px solid #eee;border-radius:10px;padding:10px;}
+    .field small{display:block;color:#666;margin-bottom:4px;}
+    .field div{font-weight:600;color:#222;}
+    textarea{width:100%;padding:10px;border:1px solid #ddd;border-radius:10px;min-height:90px;resize:vertical;}
+    .link{color:#3498db;text-decoration:none;}
+    .link:hover{text-decoration:underline;}
+    .hint{font-size:13px;color:#666;margin-top:8px;}
+  
     </style>
 </head>
 <body>
@@ -50,24 +91,12 @@ $isAdmin = ($role === 'admin');
                 <i class="fas fa-hands-helping"></i>
                 <div>
                     <div style="font-size: 1.3rem;">Family Bridge</div>
-                    <div class="admin-tag"><?php echo $isChief ? 'Chief Officer Portal' : 'Admin Portal'; ?></div>
+                    <div><?php echo $isChief ? 'Chief Officer Portal' : 'Admin Portal'; ?></div>
                 </div>
             </div>
         </div>
 
-        <div class="admin-info">
-            <div class="admin-avatar">
-                <i class="fas fa-user-shield"></i>
-            </div>
-            <div class="admin-name"><?php echo htmlspecialchars($_SESSION['officer_name'] ?? ($isChief ? 'Chief Officer' : 'Admin')); ?></div>
-            <div class="admin-role">
-                <?php echo $isChief ? 'System Administrator' : 'Officer'; ?>
-                <span class="badge-role <?php echo $isAdmin ? 'admin' : ''; ?>" style="margin-left:8px;">
-                    <?php echo strtoupper($role); ?>
-                </span>
-            </div>
-        </div>
-
+      
         <nav class="sidebar-nav">
         <a href="index.php" class="nav-item"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a>
       <a href="children-management.php" class="nav-item active"><i class="fas fa-child"></i><span>Children Management</span></a>
@@ -78,12 +107,6 @@ $isAdmin = ($role === 'admin');
      
         </nav>
 
-        <div class="logout-section">
-            <button class="logout-btn" id="logoutBtn">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
-            </button>
-        </div>
     </aside>
 
     <!-- Main Content -->
@@ -108,13 +131,7 @@ $isAdmin = ($role === 'admin');
             </div>
 
             <div class="header-right">
-                <div class="admin-profile">
-                    <div class="admin-avatar-sm"><?php echo $isChief ? 'CO' : 'AD'; ?></div>
-                    <div class="admin-info-sm">
-                        <h4><?php echo $isChief ? 'Chief Officer' : 'Admin'; ?></h4>
-                        <p>Children Management</p>
-                    </div>
-                </div>
+               
 
                 <div class="header-actions">
                     <div class="search-box">
@@ -122,18 +139,18 @@ $isAdmin = ($role === 'admin');
                         <input type="text" id="searchInput" placeholder="Search children...">
                     </div>
 
-                    <button class="notification-btn" type="button" title="Notifications">
-                        <i class="fas fa-bell"></i>
-                        <span class="notification-badge">3</span>
-                    </button>
+                 
 
-                    <?php if ($isChief): ?>
-                        <button class="btn btn-primary" id="addChildBtn" type="button">
-                            <i class="fas fa-plus"></i> Add Child
-                        </button>
-                    <?php endif; ?>
+                   
                 </div>
             </div>
+            
+        <div class="logout-section">
+            <button class="logout-btn" id="logoutBtn">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </button>
+        </div>
         </header>
 
         <!-- Content Area -->

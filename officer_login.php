@@ -604,10 +604,10 @@
     <script>
         const roleCards = document.querySelectorAll('.role-card');
         const loginForm = document.getElementById('loginForm');
-        const securityCodeGroup = document.getElementById('securityCodeGroup'); // we won't use it now
+        const securityCodeGroup = document.getElementById('securityCodeGroup');
         const loginButton = document.getElementById('loginButton');
       
-        let currentRole = 'admin'; // default based on your UI selected
+        let currentRole = 'admin'; 
       
         roleCards.forEach(card => {
           card.addEventListener('click', function() {
@@ -615,7 +615,7 @@
             this.classList.add('selected');
             currentRole = this.dataset.role;
       
-            // Hide security code (we use OTP for chief instead)
+           
             securityCodeGroup.style.display = 'none';
       
             document.getElementById('loginButtonText').textContent =

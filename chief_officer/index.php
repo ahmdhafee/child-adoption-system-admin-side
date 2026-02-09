@@ -2,20 +2,13 @@
 declare(strict_types=1);
 
 require_once '../officer_auth.php';
-require_once '../officer_db.php'; // provides $pdo
+require_once '../officer_db.php'; 
 
 if (!isset($_SESSION['officer_role']) || $_SESSION['officer_role'] !== 'chief') {
     http_response_code(403);
     die('Access denied');
 }
 
-/**
- * Dashboard stats from your DB tables:
- * - Total Couples = users table count
- * - Pending Approvals = applications where status in (pending, under_review)
- * - Available Children = children where status = available
- * - New Inquiries = (you don't have inquiries table in shared dump) -> use unread user_activities as "inquiries" placeholder
- */
 
 try {
     $totalCouples = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
@@ -32,15 +25,14 @@ try {
         WHERE status = 'available'
     ")->fetchColumn();
 
-    // You don't have inquiries table in the dump.
-    // We'll show unread activities as "new inquiries" for now (you can replace later).
+   
     $newInquiries = (int)$pdo->query("
         SELECT COUNT(*)
         FROM user_activities
         WHERE is_read = 0
     ")->fetchColumn();
 
-    // Recent Activity (last 8 user activities)
+   
     $activityStmt = $pdo->query("
         SELECT activity_type, title, message, created_at
         FROM user_activities
@@ -49,7 +41,7 @@ try {
     ");
     $recentActivities = $activityStmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Pending approvals list (top 8)
+    
     $pendingStmt = $pdo->query("
         SELECT a.id, a.registration_id, a.partner1_name, a.partner2_name, a.status, a.created_at
         FROM applications a
@@ -79,7 +71,7 @@ function statusBadgeClass(string $status): string {
     };
 }
 
-// Convert DB status to friendly label for your table
+
 function statusLabel(string $status): string {
     return match ($status) {
         'pending' => 'Pending',
@@ -90,7 +82,7 @@ function statusLabel(string $status): string {
     };
 }
 
-// map activity type to icon style classes you used
+
 function activityIconClass(string $type): string {
     return match ($type) {
         'success' => 'approval',
@@ -117,7 +109,7 @@ function activityIconClass(string $type): string {
 </head>
 <body>
     <div class="app-container">
-        <!-- Sidebar -->
+        
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
@@ -145,7 +137,7 @@ function activityIconClass(string $type): string {
                     <i class="fas fa-child"></i>
                     <span>Children Management</span>
                 </a>
-                <!-- ✅ NEW: Institute Management -->
+                
             <a href="institutes.php" class="nav-item">
                 <i class="fas fa-building"></i><span>Institute Management</span>
             </a>
@@ -173,7 +165,7 @@ function activityIconClass(string $type): string {
             </nav>
 
             <div class="logout-section">
-                <!-- Real logout -->
+               
                 <a class="logout-btn" href="../officer_logout.php" style="text-decoration:none;">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
@@ -181,9 +173,9 @@ function activityIconClass(string $type): string {
             </div>
         </aside>
 
-        <!-- Main Content -->
+       
         <main class="main-content">
-            <!-- Header -->
+           
             <header class="header">
                 <div class="header-left">
                     <button class="menu-toggle" id="menuToggle">
@@ -196,13 +188,7 @@ function activityIconClass(string $type): string {
                 </div>
 
                 <div class="header-right">
-                    <div class="admin-profile">
-                        <div class="admin-avatar-sm">CO</div>
-                        <div class="admin-info-sm">
-                            <h4><?php echo htmlspecialchars($_SESSION['officer_name'] ?? 'Chief Officer'); ?></h4>
-                            <p>Administrator</p>
-                        </div>
-                    </div>
+                    
 
                     <div class="header-actions">
                         <div class="search-box">
@@ -217,9 +203,9 @@ function activityIconClass(string $type): string {
                 </div>
             </header>
 
-            <!-- Content Area -->
+           
             <div class="content">
-                <!-- Welcome Section -->
+                
                 <section class="welcome-section">
                     <h2>Welcome to Chief Officer Panel</h2>
                     <p>Manage children profiles, handle inquiries, view clients, and schedule appointments from this dashboard.</p>
@@ -227,44 +213,15 @@ function activityIconClass(string $type): string {
                         <a class="btn btn-secondary" href="children-management.php">
                             <i class="fas fa-plus-circle"></i> Add New Child
                         </a>
-                        <a class="btn btn-success" href="reports.php">
-                            <i class="fas fa-chart-line"></i> View Reports
-                        </a>
+                        
                     </div>
                 </section>
 
-                <!-- Stats Cards -->
-                <div class="stats-grid">
-                    <div class="stat-card total">
-                        <div class="stat-icon"><i class="fas fa-user-friends"></i></div>
-                        <div class="stat-value"><?php echo $totalCouples; ?></div>
-                        <div class="stat-label">Total Couples</div>
-                        <div class="stat-change positive"><i class="fas fa-arrow-up"></i> Live count</div>
-                    </div>
+               
 
-                    <div class="stat-card pending">
-                        <div class="stat-icon"><i class="fas fa-clock"></i></div>
-                        <div class="stat-value"><?php echo $pendingApprovals; ?></div>
-                        <div class="stat-label">Pending Approvals</div>
-                        <div class="stat-change positive"><i class="fas fa-arrow-down"></i> Live count</div>
-                    </div>
+               
 
-                    <div class="stat-card children">
-                        <div class="stat-icon"><i class="fas fa-child"></i></div>
-                        <div class="stat-value"><?php echo $availableChildren; ?></div>
-                        <div class="stat-label">Available Children</div>
-                        <div class="stat-change positive"><i class="fas fa-arrow-up"></i> Live count</div>
-                    </div>
-
-                    <div class="stat-card inquiries">
-                        <div class="stat-icon"><i class="fas fa-question-circle"></i></div>
-                        <div class="stat-value"><?php echo $newInquiries; ?></div>
-                        <div class="stat-label">New Inquiries</div>
-                        <div class="stat-change negative"><i class="fas fa-arrow-up"></i> Live count</div>
-                    </div>
-                </div>
-
-                <!-- Quick Actions -->
+                
                 <div class="quick-actions-section">
                     <div class="section-header"><h2>Quick Actions</h2></div>
                     <div class="quick-actions-grid">
